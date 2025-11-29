@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # tags & history
+          fetch-depth: 0
 
       - name: Detect bump type from labels (required)
         id: bump
@@ -46,7 +46,8 @@ jobs:
           echo "Using bump type: $bump_type"
           echo "type=$bump_type" >> "$GITHUB_OUTPUT"
 
-      - name: Bump version & update changelog
+      - name: Compute new version & update CHANGELOG
+        id: changelog
         env:
           BUMP_TYPE: ${{ steps.bump.outputs.type }}
         run: |
@@ -54,7 +55,6 @@ jobs:
 
           DEFAULT_VERSION="0.0.0"
 
-          # Last tag (vX.Y.Z) if any
           if git describe --tags --abbrev=0 >/dev/null 2>&1; then
             CURRENT_TAG="$(git describe --tags --abbrev=0)"
             BASE_VERSION="${CURRENT_TAG#v}"
@@ -80,16 +80,12 @@ jobs:
             patch)
               PATCH=$((PATCH + 1))
               ;;
-            *)
-              echo "Unknown bump type '$BUMP_TYPE'"
-              exit 1
-              ;;
           esac
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "New version: $NEW_VERSION"
 
-          # Prepare CHANGELOG
           DATE="$(date +%Y-%m-%d)"
           TMP_CHANGELOG="$(mktemp)"
 
@@ -107,11 +103,9 @@ jobs:
           echo >> "$TMP_CHANGELOG"
           echo >> "$TMP_CHANGELOG"
 
-          # File-level summary
           if [[ -n "$CURRENT_TAG" ]]; then
             DIFF_RANGE="${CURRENT_TAG}..HEAD"
           else
-            # empty tree to HEAD
             EMPTY_TREE="$(git hash-object -t tree /dev/null)"
             DIFF_RANGE="$EMPTY_TREE..HEAD"
           fi
@@ -138,7 +132,6 @@ jobs:
                 removed+=("$path")
                 ;;
               R* )
-                # RXXX old new
                 old="$path"
                 new="$rest"
                 renamed+=("$old -> $new")
@@ -175,17 +168,37 @@ jobs:
           echo "Updated CHANGELOG.md (top):"
           head -n 40 CHANGELOG.md || true
 
-          # Commit & tag
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          installation-id: ${{ secrets.RELEASE_APP_INSTALLATION_ID }}
+
+      - name: Push changelog and tag as GitHub App
+        env:
+          VERSION: ${{ steps.changelog.outputs.new_version }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "ppwp-release-bot[app]"
+          git config user.email "ppwp-release-bot[app]@users.noreply.github.com"
 
           git add CHANGELOG.md
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore(release): v$NEW_VERSION [skip ci]"
-            git tag "v$NEW_VERSION"
-            git push origin HEAD:main
-            git push origin "v$NEW_VERSION"
+            git commit -m "chore(release): v$VERSION [skip ci]"
           fi
+
+          TAG="v$VERSION"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG"
+          fi
+
+          repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$repo_url" HEAD:main
+          git push "$repo_url" "$TAG"
