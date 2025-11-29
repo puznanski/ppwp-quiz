@@ -2,39 +2,60 @@ name: Require release label
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
 
 jobs:
   require-release-label:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check for required release label
+      - name: Skip on push to main
+        if: github.event_name == 'push'
+        run: echo "Skipping for push to main"
+
+      - name: Validate release label
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
-          echo "PR labels: $labels"
 
           count=0
+          for l in release:major release:minor release:patch; do
+            if [[ "$labels" =~ $l ]]; then
+              count=$((count + 1))
+              selected="$l"
+            fi
+          done
 
-          if [[ "$labels" =~ release:major ]]; then
-            count=$((count + 1))
-          fi
-          if [[ "$labels" =~ release:minor ]]; then
-            count=$((count + 1))
-          fi
-          if [[ "$labels" =~ release:patch ]]; then
-            count=$((count + 1))
+          pr_number="${{ github.event.pull_request.number }}"
+          repo="${{ github.repository }}"
+
+          if [[ $count -eq 1 ]]; then
+            echo "Valid release label: $selected"
+            exit 0
           fi
 
           if [[ $count -eq 0 ]]; then
-            echo "ERROR: Missing release label. Add exactly one of: release:major, release:minor, release:patch."
-            exit 1
+            msg="❌ Release label check failed.%0A%0AAdd exactly one of:%0A• \`release:patch\`%0A• \`release:minor\`%0A• \`release:major\`"
+          else
+            msg="❌ Release label check failed.%0A%0AMultiple release labels detected.%0AKeep exactly one of:%0A• \`release:patch\`%0A• \`release:minor\`%0A• \`release:major\`"
           fi
 
-          if [[ $count -gt 1 ]]; then
-            echo "ERROR: Multiple release labels found. Use exactly one of: release:major, release:minor, release:patch."
-            exit 1
-          fi
+          curl -sS \
+            -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$repo/issues/$pr_number/comments" \
+            -d "{\"body\":\"$msg\"}"
 
-          echo "Valid release label configuration."
+          echo "::error::Invalid release label configuration"
+          exit 1

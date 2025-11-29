@@ -174,7 +174,6 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          installation-id: ${{ secrets.RELEASE_APP_INSTALLATION_ID }}
 
       - name: Push changelog and tag as GitHub App
         env:
