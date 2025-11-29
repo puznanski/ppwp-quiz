@@ -29,6 +29,35 @@ jobs:
           labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
           echo "PR labels: $labels"
 
+          pr_number="${{ github.event.pull_request.number }}"
+          repo="${{ github.repository }}"
+
+          # Helper: delete previous label-check comments from github-actions[bot]
+          cleanup_comments() {
+            local prefix="❌ Release label check failed."
+            local comments_url="https://api.github.com/repos/$repo/issues/$pr_number/comments?per_page=100"
+
+            echo "Fetching existing comments for cleanup..."
+            comments_json="$(curl -sS \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "$comments_url")"
+
+            ids=$(echo "$comments_json" | jq -r \
+              --arg prefix "$prefix" \
+              '.[] | select(.user.login=="github-actions[bot]" and (.body | startswith($prefix))) | .id')
+
+            for id in $ids; do
+              echo "Deleting old label-check comment id=$id"
+              curl -sS -X DELETE \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H 'Accept: application/vnd.github+json' \
+                "https://api.github.com/repos/$repo/issues/comments/$id" \
+                >/dev/null || true
+            done
+          }
+
+          # Count release labels
           count=0
           selected=""
 
@@ -39,44 +68,24 @@ jobs:
             fi
           done
 
-          pr_number="${{ github.event.pull_request.number }}"
-          repo="${{ github.repository }}"
-
           if [[ $count -eq 1 ]]; then
             echo "Valid release label: $selected"
+            # Clean up any old error comments now that it's fixed
+            cleanup_comments
             exit 0
           fi
 
+          # Build error message for invalid config
           if [[ $count -eq 0 ]]; then
             message=$'❌ Release label check failed.\n\nAdd exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
           else
             message=$'❌ Release label check failed.\n\nMultiple release labels detected.\nKeep exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
           fi
 
-          echo "Cleaning up previous label-check comments..."
+          # Remove old error comments first
+          cleanup_comments
 
-          comments_url="https://api.github.com/repos/$repo/issues/$pr_number/comments?per_page=100"
-
-          comments_json="$(curl -sS \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            "$comments_url")"
-
-          # Find comment IDs from github-actions[bot] whose body starts with our prefix
-          prefix="❌ Release label check failed."
-          ids=$(echo "$comments_json" | jq -r \
-            --arg prefix "$prefix" \
-            '.[] | select(.user.login=="github-actions[bot]" and (.body | startswith($prefix))) | .id')
-
-          for id in $ids; do
-            echo "Deleting old comment id=$id"
-            curl -sS -X DELETE \
-              -H "Authorization: Bearer $GITHUB_TOKEN" \
-              -H 'Accept: application/vnd.github+json' \
-              "https://api.github.com/repos/$repo/issues/comments/$id" \
-              >/dev/null || true
-          done
-
+          # Post fresh comment
           echo "$message" | jq -Rs '{body: .}' > body.json
 
           curl -sS \
