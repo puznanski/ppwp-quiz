@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   autoversion:
@@ -15,11 +16,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # 1) Get GitHub App token
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      # 2) Checkout using the APP token (this is critical for bypass)
+      - name: Checkout with app token
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
 
+      # 3) Detect bump type from PR labels
       - name: Detect bump type from labels (required)
         id: bump
         run: |
@@ -46,8 +59,9 @@ jobs:
           echo "Using bump type: $bump_type"
           echo "type=$bump_type" >> "$GITHUB_OUTPUT"
 
+      # 4) Compute new version & generate CHANGELOG.md
       - name: Compute new version & update CHANGELOG
-        id: changelog
+        id: version
         env:
           BUMP_TYPE: ${{ steps.bump.outputs.type }}
         run: |
@@ -80,10 +94,17 @@ jobs:
             patch)
               PATCH=$((PATCH + 1))
               ;;
+            *)
+              echo "Unknown BUMP_TYPE: $BUMP_TYPE"
+              exit 1
+              ;;
           esac
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          TAG="v$NEW_VERSION"
+
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "New version: $NEW_VERSION"
 
           DATE="$(date +%Y-%m-%d)"
@@ -103,6 +124,7 @@ jobs:
           echo >> "$TMP_CHANGELOG"
           echo >> "$TMP_CHANGELOG"
 
+          # Diff range for file summary
           if [[ -n "$CURRENT_TAG" ]]; then
             DIFF_RANGE="${CURRENT_TAG}..HEAD"
           else
@@ -168,39 +190,28 @@ jobs:
           echo "Updated CHANGELOG.md (top):"
           head -n 40 CHANGELOG.md || true
 
-      - name: Create GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
-      - name: Configure git identity for GitHub App
-        run: |
-          git config user.name "puz-release-bot[bot]"
-          git config user.email "puz-release-bot[bot]@users.noreply.github.com"
-
-      - name: Commit changelog and push tag using App token
+      # 5) Commit, tag, push as the GitHub App
+      - name: Commit release, tag and push
         env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
-          VERSION: ${{ steps.changelog.outputs.new_version }}
+          VERSION: ${{ steps.version.outputs.new_version }}
         run: |
           set -euo pipefail
 
           TAG="v$VERSION"
 
-          # Stage files
+          git config user.name "puz-release-bot[bot]"
+          git config user.email "puz-release-bot[bot]@users.noreply.github.com"
+
           git add CHANGELOG.md
 
-          # Only commit if there is something to commit
           if git diff --cached --quiet; then
             echo "No changes to commit, skipping commit & tag."
-          else
-            git commit -m "chore(release): v$VERSION [skip ci]"
-            git tag "$TAG"
+            exit 0
           fi
 
-          repo_url="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git commit -m "chore(release): v$VERSION [skip ci]"
+          git tag "$TAG"
 
-          git push "$repo_url" HEAD:main
-          git push "$repo_url" "$TAG" || echo "Tag push skipped or already exists."
+          # Uses the app token from checkout (persist-credentials: true)
+          git push origin HEAD:main
+          git push origin "$TAG"
