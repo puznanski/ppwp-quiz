@@ -175,29 +175,18 @@ jobs:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-      - name: Push changelog and tag as GitHub App
+      - name: Configure git identity for GitHub App
+        run: |
+          git config user.name "puz-release-bot[bot]"
+          git config user.email "puz-release-bot[bot]@users.noreply.github.com"
+
+      - name: Push changelog and tag using App token
         env:
-          VERSION: ${{ steps.changelog.outputs.new_version }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
 
-          git config user.name "ppwp-release-bot[app]"
-          git config user.email "ppwp-release-bot[app]@users.noreply.github.com"
+          repo_url="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-          git add CHANGELOG.md
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "chore(release): v$VERSION [skip ci]"
-          fi
-
-          TAG="v$VERSION"
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag "$TAG"
-          fi
-
-          repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push "$repo_url" HEAD:main
-          git push "$repo_url" "$TAG"
+          git push "$repo_url" --tags
