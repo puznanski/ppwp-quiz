@@ -27,8 +27,11 @@ jobs:
           set -euo pipefail
 
           labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+          echo "PR labels: $labels"
 
           count=0
+          selected=""
+
           for l in release:major release:minor release:patch; do
             if [[ "$labels" =~ $l ]]; then
               count=$((count + 1))
@@ -45,17 +48,44 @@ jobs:
           fi
 
           if [[ $count -eq 0 ]]; then
-            msg="❌ Release label check failed.%0A%0AAdd exactly one of:%0A• \`release:patch\`%0A• \`release:minor\`%0A• \`release:major\`"
+            message=$'❌ Release label check failed.\n\nAdd exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
           else
-            msg="❌ Release label check failed.%0A%0AMultiple release labels detected.%0AKeep exactly one of:%0A• \`release:patch\`%0A• \`release:minor\`%0A• \`release:major\`"
+            message=$'❌ Release label check failed.\n\nMultiple release labels detected.\nKeep exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
           fi
+
+          echo "Cleaning up previous label-check comments..."
+
+          comments_url="https://api.github.com/repos/$repo/issues/$pr_number/comments?per_page=100"
+
+          comments_json="$(curl -sS \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "$comments_url")"
+
+          # Find comment IDs from github-actions[bot] whose body starts with our prefix
+          prefix="❌ Release label check failed."
+          ids=$(echo "$comments_json" | jq -r \
+            --arg prefix "$prefix" \
+            '.[] | select(.user.login=="github-actions[bot]" and (.body | startswith($prefix))) | .id')
+
+          for id in $ids; do
+            echo "Deleting old comment id=$id"
+            curl -sS -X DELETE \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/$repo/issues/comments/$id" \
+              >/dev/null || true
+          done
+
+          echo "$message" | jq -Rs '{body: .}' > body.json
 
           curl -sS \
             -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
+            -H 'Accept: application/vnd.github+json' \
             "https://api.github.com/repos/$repo/issues/$pr_number/comments" \
-            -d "{\"body\":\"$msg\"}"
+            -d @body.json \
+            >/dev/null
 
           echo "::error::Invalid release label configuration"
           exit 1
