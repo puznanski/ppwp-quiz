@@ -1,0 +1,40 @@
+name: Require release label
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+jobs:
+  require-release-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for required release label
+        run: |
+          set -euo pipefail
+
+          labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+          echo "PR labels: $labels"
+
+          count=0
+
+          if [[ "$labels" =~ release:major ]]; then
+            count=$((count + 1))
+          fi
+          if [[ "$labels" =~ release:minor ]]; then
+            count=$((count + 1))
+          fi
+          if [[ "$labels" =~ release:patch ]]; then
+            count=$((count + 1))
+          fi
+
+          if [[ $count -eq 0 ]]; then
+            echo "ERROR: Missing release label. Add exactly one of: release:major, release:minor, release:patch."
+            exit 1
+          fi
+
+          if [[ $count -gt 1 ]]; then
+            echo "ERROR: Multiple release labels found. Use exactly one of: release:major, release:minor, release:patch."
+            exit 1
+          fi
+
+          echo "Valid release label configuration."
