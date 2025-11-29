@@ -180,13 +180,27 @@ jobs:
           git config user.name "puz-release-bot[bot]"
           git config user.email "puz-release-bot[bot]@users.noreply.github.com"
 
-      - name: Push changelog and tag using App token
+      - name: Commit changelog and push tag using App token
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.changelog.outputs.new_version }}
         run: |
           set -euo pipefail
+
+          TAG="v$VERSION"
+
+          # Stage files
+          git add CHANGELOG.md
+
+          # Only commit if there is something to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit, skipping commit & tag."
+          else
+            git commit -m "chore(release): v$VERSION [skip ci]"
+            git tag "$TAG"
+          fi
 
           repo_url="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           git push "$repo_url" HEAD:main
-          git push "$repo_url" --tags
+          git push "$repo_url" "$TAG" || echo "Tag push skipped or already exists."
