@@ -114,10 +114,10 @@ jobs:
           echo >> "$TMP_CHANGELOG"
 
           if [[ -n "$CURRENT_TAG" ]]; then
-            echo "Changes since $CURRENT_TAG:" >> "$TMP_CHANGELOG"
+            echo "### Changes since $CURRENT_TAG:" >> "$TMP_CHANGELOG"
             git log "${CURRENT_TAG}..HEAD" --pretty=format:"- %s" >> "$TMP_CHANGELOG" || true
           else
-            echo "Initial release:" >> "$TMP_CHANGELOG"
+            echo "### Initial release:" >> "$TMP_CHANGELOG"
             git log --pretty=format:"- %s" >> "$TMP_CHANGELOG" || true
           fi
 
