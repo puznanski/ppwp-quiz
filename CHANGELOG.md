@@ -1,3 +1,20 @@
+## v0.0.2 - 2025-11-29
+
+### Changes since v0.0.1:
+- QZ-4 Basic project structure and description (#1)
+
+### File changes summary:
+
+Added:
+- `src/quizcli.py`
+
+Modified:
+- `.github/workflows/release.yml`
+- `.gitignore`
+- `CHANGELOG.md`
+- `README.md`
+
+
 ## v0.0.1 - 2025-11-29
 
 ### Initial release:
