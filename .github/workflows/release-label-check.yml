@@ -2,39 +2,99 @@ name: Require release label
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
 
 jobs:
   require-release-label:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check for required release label
+      - name: Skip on push to main
+        if: github.event_name == 'push'
+        run: echo "Skipping for push to main"
+
+      - name: Validate release label
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
           echo "PR labels: $labels"
 
+          pr_number="${{ github.event.pull_request.number }}"
+          repo="${{ github.repository }}"
+
+          # Helper: delete previous label-check comments from github-actions[bot]
+          cleanup_comments() {
+            local prefix="❌ Release label check failed."
+            local comments_url="https://api.github.com/repos/$repo/issues/$pr_number/comments?per_page=100"
+
+            echo "Fetching existing comments for cleanup..."
+            comments_json="$(curl -sS \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "$comments_url")"
+
+            ids=$(echo "$comments_json" | jq -r \
+              --arg prefix "$prefix" \
+              '.[] | select(.user.login=="github-actions[bot]" and (.body | startswith($prefix))) | .id')
+
+            for id in $ids; do
+              echo "Deleting old label-check comment id=$id"
+              curl -sS -X DELETE \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H 'Accept: application/vnd.github+json' \
+                "https://api.github.com/repos/$repo/issues/comments/$id" \
+                >/dev/null || true
+            done
+          }
+
+          # Count release labels
           count=0
+          selected=""
 
-          if [[ "$labels" =~ release:major ]]; then
-            count=$((count + 1))
-          fi
-          if [[ "$labels" =~ release:minor ]]; then
-            count=$((count + 1))
-          fi
-          if [[ "$labels" =~ release:patch ]]; then
-            count=$((count + 1))
+          for l in release:major release:minor release:patch; do
+            if [[ "$labels" =~ $l ]]; then
+              count=$((count + 1))
+              selected="$l"
+            fi
+          done
+
+          if [[ $count -eq 1 ]]; then
+            echo "Valid release label: $selected"
+            # Clean up any old error comments now that it's fixed
+            cleanup_comments
+            exit 0
           fi
 
+          # Build error message for invalid config
           if [[ $count -eq 0 ]]; then
-            echo "ERROR: Missing release label. Add exactly one of: release:major, release:minor, release:patch."
-            exit 1
+            message=$'❌ Release label check failed.\n\nAdd exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
+          else
+            message=$'❌ Release label check failed.\n\nMultiple release labels detected.\nKeep exactly one of:\n• `release:patch`\n• `release:minor`\n• `release:major`'
           fi
 
-          if [[ $count -gt 1 ]]; then
-            echo "ERROR: Multiple release labels found. Use exactly one of: release:major, release:minor, release:patch."
-            exit 1
-          fi
+          # Remove old error comments first
+          cleanup_comments
 
-          echo "Valid release label configuration."
+          # Post fresh comment
+          echo "$message" | jq -Rs '{body: .}' > body.json
+
+          curl -sS \
+            -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$repo/issues/$pr_number/comments" \
+            -d @body.json \
+            >/dev/null
+
+          echo "::error::Invalid release label configuration"
+          exit 1
