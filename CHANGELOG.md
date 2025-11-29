@@ -1,0 +1,21 @@
+## v0.0.1 - 2025-11-29
+
+Initial release:
+- QZ-5 Fixed versioning workflow (#8)
+- QZ-5 Fixed versioning workflow (#7)
+- QZ-5 Updated versioning workflow token acquiring (#6)
+- QZ-5 Updated versioning workflow (#5)
+- QZ-5 Updated versioning workflow permissions (#4)
+- QZ-5 Created github versioning workflow (#3)
+- Initial commit
+
+### File changes summary:
+
+Added:
+- `.github/workflows/release-label-check.yml`
+- `.github/workflows/release.yml`
+- `.gitignore`
+- `LICENSE`
+- `README.md`
+
+
