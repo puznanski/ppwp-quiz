@@ -1,6 +1,6 @@
 ## v0.0.1 - 2025-11-29
 
-Initial release:
+### Initial release:
 - QZ-5 Fixed versioning workflow (#8)
 - QZ-5 Fixed versioning workflow (#7)
 - QZ-5 Updated versioning workflow token acquiring (#6)
