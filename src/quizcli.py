@@ -3,6 +3,13 @@ import json
 from config import get_llm
 
 
+def clear_screen():
+    if os.environ.get('TERM'):
+        clear_screen()
+    else:
+        print("\n" * 50)
+
+
 class QuizQuestion:
     def __init__(self, question: str, options: list[str], correct_index: int):
         self.question = question
@@ -49,11 +56,16 @@ def ask_question(question: QuizQuestion, question_num: int, total: int) -> str:
     print(question.question)
     for option in question.options:
         print(f"  {option}")
-    return input("Twój wybór (A/B/C/D): ").strip().upper()
+
+    while True:
+        answer = input("Twój wybór (A/B/C/D): ").strip().upper()
+        if answer in ["A", "B", "C", "D"]:
+            return answer
+        print("Nieprawidłowy wybór. Wpisz A, B, C lub D.")
 
 
 def main():
-    os.system('clear')
+    clear_screen()
     llm = get_llm()
 
     print("=== QuizCLI ===\n")
@@ -66,7 +78,7 @@ def main():
     response = llm.generate(prompt)
     questions = parse_response(response)
 
-    os.system('clear')
+    clear_screen()
     score = 0
     total = len(questions)
 
@@ -81,7 +93,7 @@ def main():
             print(f"Błędnie! Poprawna odpowiedź: {correct_letter}\n")
 
         input("Naciśnij Enter, aby kontynuować...")
-        os.system('clear')
+        clear_screen()
 
     percent = (score / total) * 100
     print(f"Twój wynik: {score}/{total} ({percent:.0f}%)")
