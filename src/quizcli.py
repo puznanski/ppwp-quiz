@@ -31,12 +31,11 @@ def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
         "]\n"
     )
 class QuizQuestion:
-    def __init__(self, id, question, options, answer, explanation=""):
-        self.id = id
-        self.question = question
-        self.options = options
-        self.answer = answer
-        self.explanation = explanation
+    id: int
+    question: str
+    options: list[str]
+    answer: str
+    explanation: str
 
 def ask_user_for_answer(question):
     print(f"Q{question.id}: {question.question}")
