@@ -37,6 +37,9 @@ class QuizQuestion:
     answer: str
     explanation: str
 
+    def __str__(self):
+        return f"Q{self.id}: {self.question} | Options: {self.options} | Answer: {self.answer}"
+
 def ask_user_for_answer(question):
     print(f"Q{question.id}: {question.question}")
     for idx, option in enumerate(question.options, start=1):
@@ -63,7 +66,7 @@ def main():
 
     score = 0
     for question in quiz_questions:
-        user_answer = ask_user_for_answer(question)
+        user_answer = quiz_cli.ask_user_for_answer(question)
         correct_option_index = question.options.index(question.answer) + 1
         if str(correct_option_index) == user_answer:
             print("Correct!\n")
@@ -71,8 +74,8 @@ def main():
         else:
             print(f"Wrong! The correct answer is: {question.answer}\n")
             print(f"Explanation: {question.explanation}\n")
-
-    print(f"Your final score: {score}/{len(quiz_questions)}")
+        os.system('clear')
+    print(f"Liczba poprawnych odpowiedzi: {score}/{len(quiz_questions)}")
 
 if __name__ == "__main__":
     main()
