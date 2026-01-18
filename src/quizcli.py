@@ -1,3 +1,11 @@
+import os
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, model_validator
+from typing_extensions import Self
+from json import JSONDecoder
+
 
 def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
     return (
@@ -22,31 +30,52 @@ def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
         "  }\n"
         "]\n"
     )
+class QuizQuestion:
+    id: int
+    question: str
+    options: list[str]
+    answer: str
+    explanation: str
+
+    def __str__(self):
+        return f"Q{self.id}: {self.question} | Options: {self.options} | Answer: {self.answer}"
+
+def ask_user_for_answer(question):
+    print(f"Q{question.id}: {question.question}")
+    for idx, option in enumerate(question.options, start=1):
+        print(f"  {idx}. {option}")
+    return input("Your answer (enter the option number): ")
+
 def main():
-    
-    topic = input("Podaj temat quizu (np. 'Podstawy Pythona'): ").strip()
-    level = input("Podaj poziom trudności (easy/medium/hard): ").strip().lower()
-    question_count = input("Podaj liczbę pytań: ").strip()
 
-    if not topic:
-        print("Błąd: temat nie może być pusty!")
-        return
+    gemini_config = GeminiConfig(
+        model=os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
+        temperature=float(os.getenv('GEMINI_TEMPERATURE', 0.7)),
+        top_p=float(os.getenv('GEMINI_TOP_P', 0.9)),
+        top_k=int(os.getenv('GEMINI_TOP_K', 40)),
+        api_key=os.getenv('GEMINI_API_KEY'),
+    )
 
-    if level not in {"easy", "medium", "hard"}:
-        print("Błąd: poziom trudności musi być 'easy', 'medium' lub 'hard'!")
-        return
+    quiz_cli = QuizCLI(config=gemini_config)
 
-    if not question_count.isdigit() or int(question_count) <= 0:
-        print("Błąd: liczba pytań musi być dodatnią liczbą całkowitą!")
-        return
+    prompt = quiz_cli.create_prompt(input_config)
+    response = quiz_cli.generate_response(prompt)
+    json_response = quiz_cli.parse_response_as_json(response)
+    quiz_questions = quiz_cli.extract_quiz_questions(json_response)
 
-    question_count = int(question_count)
 
-    print("\nDane wprowadzone przez użytkownika:")
-    print(f"Temat: {topic}")
-    print(f"Poziom trudności: {level}")
-    print(f"Liczba pytań: {question_count}")
-
+    score = 0
+    for question in quiz_questions:
+        user_answer = quiz_cli.ask_user_for_answer(question)
+        correct_option_index = question.options.index(question.answer) + 1
+        if str(correct_option_index) == user_answer:
+            print("Correct!\n")
+            score += 1
+        else:
+            print(f"Wrong! The correct answer is: {question.answer}\n")
+            print(f"Explanation: {question.explanation}\n")
+        os.system('clear')
+    print(f"Liczba poprawnych odpowiedzi: {score}/{len(quiz_questions)}")
 
 if __name__ == "__main__":
     main()
