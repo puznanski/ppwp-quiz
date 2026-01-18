@@ -1,11 +1,14 @@
 import os
 import json
+from datetime import datetime
 from config import get_llm
+
+HISTORY_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "quiz_history.jsonl")
 
 
 def clear_screen():
     if os.environ.get('TERM'):
-        clear_screen()
+        os.system('clear')
     else:
         print("\n" * 50)
 
@@ -64,11 +67,55 @@ def ask_question(question: QuizQuestion, question_num: int, total: int) -> str:
         print("Nieprawidłowy wybór. Wpisz A, B, C lub D.")
 
 
-def main():
+def save_history(topic: str, difficulty: str, score: int, total: int):
+    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+    record = {
+        "ts": datetime.now().isoformat(),
+        "topic": topic,
+        "difficulty": difficulty,
+        "score": score,
+        "total": total
+    }
+    with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def view_history():
+    clear_screen()
+    print("=== Historia quizów ===\n")
+
+    if not os.path.exists(HISTORY_FILE):
+        print("Brak historii.\n")
+        input("Naciśnij Enter, aby wrócić...")
+        return
+
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    if not lines:
+        print("Brak historii.\n")
+        input("Naciśnij Enter, aby wrócić...")
+        return
+
+    for line in lines:
+        record = json.loads(line.strip())
+        ts = record["ts"][:16].replace("T", " ")
+        topic = record["topic"]
+        difficulty = record["difficulty"]
+        score = record["score"]
+        total = record["total"]
+        percent = (score / total) * 100
+        print(f"[{ts}] {topic} ({difficulty}) - {score}/{total} ({percent:.0f}%)")
+
+    print()
+    input("Naciśnij Enter, aby wrócić...")
+
+
+def play_game():
     clear_screen()
     llm = get_llm()
 
-    print("=== QuizCLI ===\n")
+    print("=== Nowy Quiz ===\n")
     topic = input("Podaj temat quizu: ")
     level = input("Wybierz poziom trudności (easy/medium/hard): ")
     question_count = int(input("Ile pytań wygenerować? "))
@@ -96,7 +143,39 @@ def main():
         clear_screen()
 
     percent = (score / total) * 100
-    print(f"Twój wynik: {score}/{total} ({percent:.0f}%)")
+    print(f"Twój wynik: {score}/{total} ({percent:.0f}%)\n")
+
+    save_history(topic, level, score, total)
+    input("Naciśnij Enter, aby wrócić do menu...")
+
+
+def show_menu():
+    print("=== QuizCLI ===\n")
+    print("1. Zagraj w quiz")
+    print("2. Zobacz historię")
+    print("3. Wyjdź")
+    print()
+
+    while True:
+        choice = input("Wybierz opcję (1/2/3): ").strip()
+        if choice in ["1", "2", "3"]:
+            return choice
+        print("Nieprawidłowy wybór. Wpisz 1, 2 lub 3.")
+
+
+def main():
+    while True:
+        clear_screen()
+        choice = show_menu()
+
+        if choice == "1":
+            play_game()
+        elif choice == "2":
+            view_history()
+        elif choice == "3":
+            clear_screen()
+            print("Do zobaczenia!\n")
+            break
 
 
 if __name__ == "__main__":
