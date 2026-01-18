@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from typing_extensions import Self
 from json import JSONDecoder
 
