@@ -1,6 +1,3 @@
-import os
-from dotenv import load_dotenv
-
 
 def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
     return (
