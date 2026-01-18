@@ -1,3 +1,12 @@
+import os
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, model_validator
+from typing_extensions import Self
+from json import JSONDecoder
+
+
 def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
     return (
         f'Przygotuj mi quiz na temat "{topic}".\n'
@@ -21,3 +30,39 @@ def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
         "  }\n"
         "]\n"
     )
+class QuizQuestion:
+    def __init__(self, id, question, options, answer, explanation=""):
+        self.id = id
+        self.question = question
+        self.options = options
+        self.answer = answer
+        self.explanation = explanation
+
+def ask_user_for_answer(question):
+    print(f"Q{question.id}: {question.question}")
+    for idx, option in enumerate(question.options, start=1):
+        print(f"  {idx}. {option}")
+    return input("Your answer (enter the option number): ")
+
+def main():
+    prompt = quiz_cli.create_prompt(input_config)
+    response = quiz_cli.generate_response(prompt)
+    json_response = quiz_cli.parse_response_as_json(response)
+    quiz_questions = quiz_cli.extract_quiz_questions(json_response)
+
+
+    score = 0
+    for question in quiz_questions:
+        user_answer = ask_user_for_answer(question)
+        correct_option_index = question.options.index(question.answer) + 1
+        if str(correct_option_index) == user_answer:
+            print("Correct!\n")
+            score += 1
+        else:
+            print(f"Wrong! The correct answer is: {question.answer}\n")
+            print(f"Explanation: {question.explanation}\n")
+
+    print(f"Your final score: {score}/{len(quiz_questions)}")
+
+if __name__ == "__main__":
+    main()
