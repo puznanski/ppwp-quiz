@@ -1,3 +1,17 @@
+## v0.0.3 - 2026-01-18
+
+### Changes since v0.0.2:
+- Updated workflow with new action version (#13)
+- QZ-10 Wymyślić prompt z zapytaniem do OpenAI (#11)
+- QZ-9 Funkcja przygotowująca prompt (#10)
+
+### File changes summary:
+
+Modified:
+- `.github/workflows/release.yml`
+- `src/quizcli.py`
+
+
 ## v0.0.2 - 2025-11-29
 
 ### Changes since v0.0.1:
