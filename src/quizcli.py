@@ -6,6 +6,25 @@ from pydantic import BaseModel, model_validator
 from typing_extensions import Self
 from json import JSONDecoder
 
+class GeminiConfig(BaseModel):
+    model: str
+    temperature: float
+    top_p: float
+    top_k: int
+    api_key: str
+
+class QuizQuestion(BaseModel):
+    id: int
+    question: str
+    options: list[str]
+    answer: str
+    explanation: str
+
+class InputConfig(BaseModel):
+    level: str
+    topic: str
+    question_count: int
+
 
 def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
     return (
@@ -31,23 +50,22 @@ def build_prompt(topic: str, difficulty: str, n_questions: int) -> str:
         "]\n"
     )
 class QuizQuestion:
-    id: int
-    question: str
-    options: list[str]
-    answer: str
-    explanation: str
+    def __init__(self, config: GeminiConfig):
+        self.config = config
+        self.prompt = ""
 
     def __str__(self):
         return f"Q{self.id}: {self.question} | Options: {self.options} | Answer: {self.answer}"
 
-def ask_user_for_answer(question):
-    print(f"Q{question.id}: {question.question}")
-    for idx, option in enumerate(question.options, start=1):
-        print(f"  {idx}. {option}")
-    return input("Your answer (enter the option number): ")
-
+    def ask_user_for_answer(self, question):
+        print(f"Q{question.id}: {question.question}")
+        for idx, option in enumerate(question.options, start=1):
+            print(f"  {idx}. {option}")
+        return input("Your answer (enter the option number): ")
+    
 def main():
-
+    load_dotenv()
+    os.system('clear')
     gemini_config = GeminiConfig(
         model=os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
         temperature=float(os.getenv('GEMINI_TEMPERATURE', 0.7)),
@@ -57,12 +75,16 @@ def main():
     )
 
     quiz_cli = QuizCLI(config=gemini_config)
-
+    input_config = InputConfig(
+        level=input("Enter difficulty level (easy, medium, hard): "),
+        topic=input("Enter quiz topic: "),
+        question_count=input("Enter number of questions: "),
+    )
+    os.system('clear')
     prompt = quiz_cli.create_prompt(input_config)
     response = quiz_cli.generate_response(prompt)
     json_response = quiz_cli.parse_response_as_json(response)
     quiz_questions = quiz_cli.extract_quiz_questions(json_response)
-
 
     score = 0
     for question in quiz_questions:
