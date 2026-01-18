@@ -45,6 +45,17 @@ def ask_user_for_answer(question):
     return input("Your answer (enter the option number): ")
 
 def main():
+
+    gemini_config = GeminiConfig(
+        model=os.getenv('GEMINI_MODEL', 'gemini-2.5-flash'),
+        temperature=float(os.getenv('GEMINI_TEMPERATURE', 0.7)),
+        top_p=float(os.getenv('GEMINI_TOP_P', 0.9)),
+        top_k=int(os.getenv('GEMINI_TOP_K', 40)),
+        api_key=os.getenv('GEMINI_API_KEY'),
+    )
+
+    quiz_cli = QuizCLI(config=gemini_config)
+
     prompt = quiz_cli.create_prompt(input_config)
     response = quiz_cli.generate_response(prompt)
     json_response = quiz_cli.parse_response_as_json(response)
