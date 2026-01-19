@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from config import get_llm
 
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "quiz_history.jsonl")
+HISTORY_FILE = os.path.join(os.path.dirname(_file_), "..", "data", "quiz_history.jsonl")
 
 
 def clear_screen():
@@ -111,14 +111,42 @@ def view_history():
     input("Naciśnij Enter, aby wrócić...")
 
 
+def get_topic() -> str:
+    while True:
+        topic = input("Podaj temat quizu: ").strip()
+        if topic:
+            return topic
+        print("Temat nie może być pusty.")
+
+
+def get_difficulty() -> str:
+    valid_levels = ["łatwy", "średni", "trudny"]
+    while True:
+        level = input("Wybierz poziom trudności (łatwy/średni/trudny): ").strip().lower()
+        if level in valid_levels:
+            return level
+        print("Nieprawidłowy poziom. Wpisz: łatwy, średni lub trudny.")
+
+
+def get_question_count() -> int:
+    while True:
+        try:
+            count = int(input("Ile pytań wygenerować (1-20)? "))
+            if 1 <= count <= 20:
+                return count
+            print("Liczba pytań musi być od 1 do 20.")
+        except ValueError:
+            print("Podaj liczbę całkowitą.")
+
+
 def play_game():
     clear_screen()
     llm = get_llm()
 
     print("=== Nowy Quiz ===\n")
-    topic = input("Podaj temat quizu: ")
-    level = input("Wybierz poziom trudności (easy/medium/hard): ")
-    question_count = int(input("Ile pytań wygenerować? "))
+    topic = get_topic()
+    level = get_difficulty()
+    question_count = get_question_count()
 
     print("\nGeneruję pytania...\n")
     prompt = build_prompt(topic, level, question_count)
@@ -178,5 +206,5 @@ def main():
             break
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
