@@ -1,3 +1,14 @@
+## v0.2.0 - 2026-01-19
+
+### Changes since v0.1.1:
+- QZ-20 Historia wyników i menu główne (#19)
+
+### File changes summary:
+
+Modified:
+- `src/quizcli.py`
+
+
 ## v0.1.1 - 2026-01-19
 
 ### Changes since v0.1.0:
