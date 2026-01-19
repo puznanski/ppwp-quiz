@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from config import get_llm
 
-HISTORY_FILE = os.path.join(os.path.dirname(_file_), "..", "data", "quiz_history.jsonl")
+HISTORY_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "quiz_history.jsonl")
 
 
 def clear_screen():
@@ -120,10 +120,15 @@ def get_topic() -> str:
 
 
 def get_difficulty() -> str:
-    valid_levels = ["łatwy", "średni", "trudny"]
+    valid_levels = ["łatwy", "średni", "trudny", "latwy", "sredni"]
     while True:
         level = input("Wybierz poziom trudności (łatwy/średni/trudny): ").strip().lower()
         if level in valid_levels:
+            # akceptujemy też poziomy bez polskich znaków
+            if level == "latwy":
+                return "łatwy"
+            elif level == "sredni":
+                return "średni"
             return level
         print("Nieprawidłowy poziom. Wpisz: łatwy, średni lub trudny.")
 
@@ -206,5 +211,5 @@ def main():
             break
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
