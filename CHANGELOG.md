@@ -1,3 +1,16 @@
+## v1.0.0 - 2026-01-19
+
+### Changes since v0.2.1:
+- QZ-7 Aktualizacja opisu projektu (#22)
+
+### File changes summary:
+
+Modified:
+- `README.md`
+- `requirements.txt`
+- `src/quizcli.py`
+
+
 ## v0.2.1 - 2026-01-19
 
 ### Changes since v0.2.0:
