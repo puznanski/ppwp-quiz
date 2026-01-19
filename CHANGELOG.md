@@ -1,3 +1,29 @@
+## v0.1.0 - 2026-01-19
+
+### Changes since v0.0.3:
+- QZ-12 Wydzielenie funkcji LLM do osobnych plików (#17)
+- QZ-19 Wyświetlanie wyniku po skończeniu gry
+- QZ-12 QZ-17 Wysyłanie requestu do Gemini i sprawdzanie poprawnej odpowiedzi
+- Merge branch 'main' into QZ-18
+- QZ-14 Przyjmowanie argumentów od użytkownika (#14)
+- QZ-18 Liczenie poprawnych odpowiedzi
+- QZ-15 Klasa na pytania i odpowiedzi
+- QZ-17,5 Sprawdzanie poprawnej odpowiedzi
+- QZ-17,5 Sprawdzanie poprawnej odpowiedzi
+- QZ-11 Ustalić format zwracanego JSONa z pytaniami (#12)
+
+### File changes summary:
+
+Added:
+- `.env.example`
+- `src/config.py`
+- `src/llm_gemini.py`
+- `src/llm_openai.py`
+
+Modified:
+- `src/quizcli.py`
+
+
 ## v0.0.3 - 2026-01-18
 
 ### Changes since v0.0.2:
