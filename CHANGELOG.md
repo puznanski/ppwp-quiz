@@ -1,3 +1,14 @@
+## v0.1.1 - 2026-01-19
+
+### Changes since v0.1.0:
+- QZ-15 Poprawki trybu gry (#18)
+
+### File changes summary:
+
+Modified:
+- `src/quizcli.py`
+
+
 ## v0.1.0 - 2026-01-19
 
 ### Changes since v0.0.3:
