@@ -1,3 +1,18 @@
+## v0.2.1 - 2026-01-19
+
+### Changes since v0.2.0:
+- QZ-6 Plik requirements.txt (#21)
+- QZ-23 (#20)
+
+### File changes summary:
+
+Added:
+- `requirements.txt`
+
+Modified:
+- `src/quizcli.py`
+
+
 ## v0.2.0 - 2026-01-19
 
 ### Changes since v0.1.1:
